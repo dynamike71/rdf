@@ -28,7 +28,7 @@ function CompareAndRemove {
 		if [ "$report_only" == "false" ]; then
 			echo "rm '$2'" 
 			echo "rm '$2'" >> "$report_file"
-#			rm "$2"
+			rm "$2"
 		fi
 	fi
 }
