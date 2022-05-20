@@ -23,11 +23,9 @@ function CompareAndRemove {
 	if [ "$diff" == "" ]; then
 
 		echo "# Removing $2 : same as $1"
-		echo "# Removing $2 : same as $1" >> "$report_file"
 
 		if [ "$report_only" == "false" ]; then
 			echo "rm '$2'" 
-			echo "rm '$2'" >> "$report_file"
 			rm "$2"
 		fi
 	fi
@@ -62,7 +60,6 @@ function CheckDuplicateFile {
 
 function PrintDate {
 	printf "# %s : %s %s\n" "$1" $(date '+%Y-%m-%d %H:%M:%S')
-	printf "# %s : %s %s\n" "$1" $(date '+%Y-%m-%d %H:%M:%S') >> "$report_file"
 }
 
 function Init {
@@ -71,8 +68,6 @@ function Init {
 		Usage
 		exit
 	fi
-
-	echo -n "" > $report_file	# empty report_file
 
 	report_only="false"
 
@@ -174,9 +169,6 @@ function Main {
 ##############################
 ###      Start of all     ####
 ##############################
-
-	report_file="rdf-report.txt"		# is designed to be a shell-script with comments "rdf-report.sh"
-
 
 	Main "$1" "$2" 
 
