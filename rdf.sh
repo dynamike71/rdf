@@ -145,7 +145,7 @@ function Usage() {
 	echo "Remove Duplicate Files"
 	echo " Searches a directory (with subdirs) for identical files and removes them"
 	echo
-	echo "USAGE: $0 \"file-suffix\" [-report-only]"
+	echo "USAGE: $0 \"file-suffix\" [--report-only]"
 	echo
 	echo "       Example: $0 \"*.jpg\" --report-only"
 	echo
