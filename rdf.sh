@@ -21,12 +21,12 @@ function CompareAndRemove {
 	local diff=`diff -q "$1" "$2"`	# alternative: sum1=`sha1sum "$1"`; sum2=`sha1sum "$2"`; if [ "$sum1" != "$sum2" ]; then
 
 	if [ "$diff" == "" ]; then
-
-		echo "# Removing $2 : same as $1"
-
 		if [ "$report_only" == "false" ]; then
+			echo "# Removing $2 : identical with $1"
 			echo "rm '$2'" 
 			rm "$2"
+		else
+			echo "# Intent to remove $2 : identical with $1"
 		fi
 	fi
 }
