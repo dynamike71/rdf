@@ -27,6 +27,7 @@ function CompareAndRemove {
 			rm "$2"
 		else
 			echo "# Intent to remove $2 : identical with $1"
+			echo "# rm '$2'" 
 		fi
 	fi
 }
