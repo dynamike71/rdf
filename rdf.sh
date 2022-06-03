@@ -11,7 +11,7 @@
 
 
 # Step 2: Compare files and remove if no diff
-function CompareAndRemove {
+CompareAndRemove() {
 
 	# if filenames are equal or not accessible
 	if [ ! -s "$2" ] || [ ! -s "$1" ] || [ "$1" == "$2" ]; then
@@ -33,7 +33,7 @@ function CompareAndRemove {
 }
 
 # Step 2: Read "todo_file" in order to compare all files with same size
-function CheckDuplicateFile {
+CheckDuplicateFile() {
 
 	local fname1
 	local fname2	
@@ -59,12 +59,12 @@ function CheckDuplicateFile {
 	rm "$todo_file"
 }
 
-function PrintDate {
+PrintDate() {
 	printf "# %s : %s %s\n" "$1" $(date '+%Y-%m-%d %H:%M:%S')
 }
 
-function Init {
-
+Init() {
+#	[ $# -eq 0 ] && exit 1
 	if [ "$1" == "" ]; then
 		Usage
 		exit
@@ -87,7 +87,7 @@ function Init {
 	fi
 }
 
-function CreateTempFiles {
+CreateTempFiles() {
 
 	tmp_prefix="rdf"
 
@@ -96,7 +96,7 @@ function CreateTempFiles {
 }
 
 # Step 1: Find all files and sort by size
-function FindAndSortFiles {
+FindAndSortFiles() {
 
 	PrintDate "Find Start"
 
@@ -106,16 +106,17 @@ function FindAndSortFiles {
 }
 
 # Step 2: main algorithm 
-function CompareFiles {
+CompareFiles() {
 
 	local last_size="undefined"
 
 	while read -r line; do
 
 		local fsize=`echo $line | cut -d "|" -f1`
-		local fname=`echo $line | cut -d "|" -f2`
+#		local fname=`echo $line | cut -d "|" -f2`
+		local fname=`printf "%s" "$line" | cut -d "|" -f2`
 
-		if [ ! -s "$fname" ]; then 
+		if [ ! -r "$fname" ]; then 
 			echo "$fname unreadable"; 
 			continue; 
 		fi 
@@ -136,7 +137,7 @@ function CompareFiles {
 	rm "$sortfile"
 }
 
-function Usage() {
+Usage() {
 	echo 
 	echo "Remove Duplicate Files"
 	echo " Searches a directory (with subdirs) for identical files and removes them"
@@ -152,7 +153,7 @@ function Usage() {
 	echo
 }
 
-function Main {				
+Main() {
 
 	Init "$1" "$2"
 
