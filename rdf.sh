@@ -24,7 +24,9 @@ CompareAndRemove() {
 		if [ "$report_only" == "false" ]; then
 			echo "# Removing $2 : identical with $1"
 			echo "rm '$2'" 
-			rm "$2"
+			if [ -e "$2" ]; then
+				rm "$2"
+			fi
 		else
 			echo "# Intent to remove $2 : identical with $1"
 			echo "# rm '$2'" 
