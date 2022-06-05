@@ -4,7 +4,7 @@
 #
 # 1. find and sort all files by size
 #
-# 2. sequential read of sorted-file and compare all files with same size
+# 2. sequential read of sorted-files and compare all files with same size
 #    a) no differences found, remove 
 #    b) differences found, next  
 #
@@ -13,61 +13,117 @@
 # Step 2: Compare files and remove if no diff
 CompareAndRemove() {
 
-	# if filenames are equal or not accessible
-	if [ ! -s "$2" ] || [ ! -s "$1" ] || [ "$1" == "$2" ]; then
+	# Skip, if filenames are equal or not readable or already removed
+	if [ ! -r "$2" ] || [ ! -r "$1" ] || [ "$1" == "$2" ] || [[ " ${RemovedFilesArr[*]} " =~ " $2 " ]]; then
 		return
 	fi
 
-	local diff=`diff -q "$1" "$2"`	# alternative: sum1=`sha1sum "$1"`; sum2=`sha1sum "$2"`; if [ "$sum1" != "$sum2" ]; then
+	# If comparison on previous runs are already done for this file combination and a difference was detected, 
+	# another diff is not anymore required. The files are different (if none of them where modified meanwhile)
+	if [ "$UseSkipDiff" == "true" ]; then
+		if [[ " ${SkipDiffFileArr[*]} " =~ " $1|$2 " ]] || [[ " ${SkipDiffFileArr[*]} " =~ " $2|$1 " ]]; then
+			echo "# Skipped: Diff already done : $1|$2"
+			return
+		fi
+	fi
 
+	local diff=`diff -q "$1" "$2"`	
+
+	# No differences found, remove
 	if [ "$diff" == "" ]; then
+
 		if [ "$report_only" == "false" ]; then
+
 			echo "# Removing $2 : identical with $1"
-			echo "rm '$2'" 
+			echo "rm \"$2\"" 
+
 			if [ -e "$2" ]; then
 				rm "$2"
 			fi
 		else
+
 			echo "# Intent to remove $2 : identical with $1"
-			echo "# rm '$2'" 
+			echo "# rm \"$2\"" 
 		fi
+
+		RemovedFilesArr+=("$2")
+	fi
+
+	# Difference found => save the compared files in order to avoid comparison on restarts
+	if [ "$diff" != "" ]; then
+		echo "$1|$2" >> "$SkipDiffFile"
 	fi
 }
 
-# Step 2: Read "todo_file" in order to compare all files with same size
-CheckDuplicateFile() {
+# Step 2: Read "SameFileSizeArr" in order to compare all files with same size
+CheckDuplicateFile() {										# echo "CheckDuplicateFile"
 
 	local fname1
 	local fname2	
 
-	while read -r fname1; do
-		local cntr1=`expr $cntr1 + 1`
+	RemovedFilesArr=()
+
+
+	for (( cntr1 = 0; cntr1 < ${#SameFileSizeArr[@]}; cntr1++ )); do
+
+		fname1=${SameFileSizeArr[$cntr1]};
 
 		if [ -r "$fname1" ]; then
-			local cntr2=0
 
-			while read -r fname2; do
-				cntr2=`expr $cntr2 + 1`
+			for (( cntr2 = 0; cntr2 < ${#SameFileSizeArr[@]}; cntr2++ )); do
+
+				fname2=${SameFileSizeArr[$cntr2]};
 
 				# Skip if comparison already done previously or file is not readable
-				if [[ $cntr2 -le $cntr1 ]] || [ ! -r "$fname2" ]; then continue; fi
+				if [ $cntr2 -le $cntr1 ] || [ ! -r "$fname2" ]; then 
+					continue
+				fi
 
 				CompareAndRemove "$fname1" "$fname2"
 
-			done < "$todo_file"
+			done
 		fi
-	done < "$todo_file"
+	
+	done
 
-	rm "$todo_file"
+	SameFileSizeArr=()
 }
 
 PrintDate() {
 	printf "# %s : %s %s\n" "$1" $(date '+%Y-%m-%d %H:%M:%S')
 }
 
+ReadSkipDiffFile() {
+
+	SkipDiffFileArr=()
+
+	while read -r line; do
+		SkipDiffFileArr+=("$line")
+	done < "$SkipDiffFile"
+}
+
+CheckRestart() {
+
+	UseSkipDiff="true"
+
+	if [ -r "$SkipDiffFile" ]; then
+
+		echo -n "This is a restart. "
+		echo -n "Skip comparison for file combinations already detected as being differnt on previous runs ? (y/n) [y] : "
+		read answer
+
+		if [ "$answer" == "n" ] || [ "$answer" == "N" ]; then
+			UseSkipDiff="false"
+		fi
+
+		if [ "$UseSkipDiff" == "true" ]; then
+			ReadSkipDiffFile
+		fi
+	fi
+}
+
 Init() {
-#	[ $# -eq 0 ] && exit 1
-	if [ "$1" == "" ]; then
+	if [ "$1" == "" ] || [ $# -eq 0 ]; then	
 		Usage
 		exit
 	fi
@@ -89,20 +145,16 @@ Init() {
 	fi
 }
 
-CreateTempFiles() {
-
-	tmp_prefix="rdf"
-
-	sortfile=$(mktemp /tmp/$tmp_prefix.XXXXXX)
-	todo_file=$(mktemp /tmp/$tmp_prefix.XXXXXX)
-}
-
 # Step 1: Find all files and sort by size
 FindAndSortFiles() {
 
 	PrintDate "Find Start"
 
-	find -type f -name "$1" -printf "%s|%p\n" | sort > "$sortfile"
+	FilesSortedBySizeArr=()
+
+	while IFS= read -r -d $'\n'; do
+		FilesSortedBySizeArr+=("$REPLY")
+	done < <(find -type f -name "$1" -printf "%s|%p\n" | sort -n )
 
 	PrintDate "Find End  "
 }
@@ -112,10 +164,11 @@ CompareFiles() {
 
 	local last_size="undefined"
 
-	while read -r line; do
+	SameFileSizeArr=()
 
-		local fsize=`echo $line | cut -d "|" -f1`
-#		local fname=`echo $line | cut -d "|" -f2`
+	for line in "${FilesSortedBySizeArr[@]}"; do
+
+		local fsize=`printf "%s" "$line" | cut -d "|" -f1`
 		local fname=`printf "%s" "$line" | cut -d "|" -f2`
 
 		if [ ! -r "$fname" ]; then 
@@ -123,26 +176,25 @@ CompareFiles() {
 			continue; 
 		fi 
 	
+		# If size has changed, compare files with same size
 		if [ "$last_size" != "$fsize" ] && [ "$last_size" != "undefined" ]; then
 			CheckDuplicateFile 
 		fi
 
 		last_size=$fsize
 
-		echo "$fname" >> "$todo_file"
+		SameFileSizeArr+=("$fname")
 
-	done < "$sortfile"
+	done 
 
 	# last size not yet done because size has not changed
 	CheckDuplicateFile 
-
-	rm "$sortfile"
 }
 
 Usage() {
 	echo 
 	echo "Remove Duplicate Files"
-	echo " Searches a directory (with subdirs) for identical files and removes them"
+	echo " Searches a directory (with subdirs) for identical files and removes/reports them"
 	echo
 	echo "USAGE: $0 \"file-suffix\" [--report-only]"
 	echo
@@ -159,7 +211,7 @@ Main() {
 
 	Init "$1" "$2"
 
-	CreateTempFiles 
+	CheckRestart
 
 	PrintDate "Start remove duplicate files"
 
@@ -173,6 +225,10 @@ Main() {
 ##############################
 ###      Start of all     ####
 ##############################
+
+	# In order to boost performance on restarts, the file "SkipDiffFile" contains a list of comparisons where a difference has 
+	# already been detected and there is no need to "diff" again the combination of files. 
+	SkipDiffFile=".rdf-skip-diff.txt"	
 
 	Main "$1" "$2" 
 
