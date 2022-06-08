@@ -226,7 +226,7 @@ Main() {
 ###      Start of all     ####
 ##############################
 
-	# In order to boost performance on restarts, the file "SkipDiffFile" contains a list of comparisons where a difference has 
+	# In order to boost performance on restarts, the file "SkipDiffFile" contains a list of file comparisons where a difference has 
 	# already been detected and there is no need to "diff" again the combination of files. 
 	SkipDiffFile=".rdf-skip-diff"	
 
